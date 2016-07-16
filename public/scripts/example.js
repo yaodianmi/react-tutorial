@@ -89,6 +89,7 @@ var CommentList = React.createClass({
       return (
         <Comment author={comment.author} key={comment.id}>
           {comment.text}
+          {comment.nowTime}
         </Comment>
       );
     });

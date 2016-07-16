@@ -20,6 +20,8 @@ node server.js
 ```sh
 pip install -r requirements.txt
 python server.py
+or
+python server_search.py
 ```
 
 ### Ruby

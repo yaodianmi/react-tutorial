@@ -11,10 +11,11 @@
 import json
 import os
 import time
+import requests
 from flask import Flask, Response, request
 
 app = Flask(__name__, static_url_path='', static_folder='public')
-app.add_url_rule('/', 'root', lambda: app.send_static_file('index.html'))
+app.add_url_rule('/', 'root', lambda: app.send_static_file('search.html'))
 
 
 def with_read():
@@ -25,7 +26,21 @@ def with_read():
 
 def with_write(datas):
     with open('comments.json', 'w') as f:
-        f.write(json.dumps(comments, indent=4, separators=(',', ': ')))
+        f.write(json.dumps(datas, indent=4, separators=(',', ': ')))
+
+def star_gte_8(data):
+    return int(float(data.get('rating',{}).get('average',0))) >= 8
+
+def format_data(books):
+    datas = []
+    for b in books:
+        datas.append({
+            'name': b.get('title', ''),
+            'author': ', '.join(b.get('author', [])),
+            'star': b.get('rating', {}).get('average', 0),
+            'image': b.get('image', ''),
+        })
+    return datas
 
 
 @app.route('/api/comments', methods=['GET', 'POST'])
@@ -50,8 +65,33 @@ def comments_handler():
 
 @app.route('/api/db_book_search', methods=['GET', 'POST'])
 def db_book_search():
-    pass
+    books = []
+
+    if request.method == 'POST':
+        form_data = request.form.to_dict()
+        print form_data
+        payload = {'q': form_data.get('filterText', ''), 'count': 10}
+
+        try:
+            r = requests.get('https://api.douban.com/v2/book/search', params=payload)
+            books = r.json().get('books',[])
+            if form_data.get('in8StarOnly', 'false') == 'true':
+                books = filter(star_gte_8, books)
+            print books
+            books = format_data(books)
+            print books
+        except Exception, e:
+            print e
+
+    return Response(
+        json.dumps(books),
+        mimetype='application/json',
+        headers={
+            'Cache-Control': 'no-cache',
+            'Access-Control-Allow-Origin': '*'
+        }
+    )
 
 
 if __name__ == '__main__':
-    app.run(port=int(os.environ.get("PORT", 3000)))
+    app.run(debug=True, port=int(os.environ.get("PORT", 3000)))
